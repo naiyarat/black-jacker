@@ -107,7 +107,6 @@ async def blackjack(ctx: commands.Context):
     cards = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] 
     standard_deck = [(card, category) for category in categories for card in cards]
     playing_deck = standard_deck * deck_count
-    playing_deck = playing_deck[:12]
     dealer_wins_count = 0
     player_wins_count = 0
     
@@ -205,6 +204,7 @@ async def blackjack(ctx: commands.Context):
                     await say(f"I **LOST**! What a fluke!")
                     await say(DORAEMON_CRYING) 
                     player_wins_count += 1
+                    break
                 time.sleep(2)
     await say("We are out of cards! Thanks for playing.")
     winnings = buy_in * abs(player_wins_count - dealer_wins_count)
