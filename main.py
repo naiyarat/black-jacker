@@ -13,6 +13,7 @@ intents = discord.Intents.default()
 
 intents.members = True
 
+game_active = False
 client = commands.Bot(command_prefix='!', intents=intents)
 BACKSHOT = 'https://tenor.com/view/gojo-satoru-gif-14818873849943523300'
 AKANE = 'https://tenor.com/view/oshi-no-ko-oshi-no-ko-reaction-anime-anime-reaction-happy-gif-11489210881418844148'
@@ -36,15 +37,13 @@ async def usage(ctx: commands.Context):
     Starts a game of Blackjack. You'll receive two cards and can choose to "hit" (draw another card) or "stand" (end your turn). The bot will then play as the dealer. Try to get as close to 21 without going over!
 
     **!rules**
-    Gives an explaination of how to play Blackjack, albiet a bit simplified
+    Gives an explaination of how to play Blackjack
     
     **!end**
     Ends the gambling...
-
-    **Game Tips:**
-    1) Type **hit** to draw another card during your turn.
-    2) Type **stand** to end your turn and let the dealer play.
-    3) Type **quit** at any time during the game to exit early.
+    
+    **!reallyend**
+    Really ends the gambling...
     """
     await ctx.send(help_message)
     
@@ -79,24 +78,33 @@ async def rules(ctx: commands.Context):
     """
     await ctx.send(rules_message)
 
-    
+@client.command()
+async def reallyend(ctx: commands.Context):
+    global game_active
+    game_active = False
+    await ctx.send("Game will end when round finishes...")
+
 @client.command()
 async def blackjack(ctx: commands.Context):
     async def say(msg):
         await ctx.send(msg)
-        time.sleep(1)         
+        time.sleep(1)       
+        
+    global game_active
+
+    game_active = True
 
     await say("Let's start the game! Please set the buy-in(baht):")
     buy_in = await client.wait_for(
         'message',
-        check=lambda message: message.content.isnumeric(),
+        check=lambda message: message.author == ctx.author and message.author == ctx.author and message.content.isnumeric(),
     )
     buy_in = int(buy_in.content)
     
     await say("How many decks would you like? Please choose a number from 1 to 8:")
     deck_count = await client.wait_for(
         'message',
-        check=lambda message: message.content.isnumeric() and 1 <= int(message.content) <= 8,
+        check=lambda message: message.author == ctx.author and message.content.isnumeric() and 1 <= int(message.content) <= 8,
     )
     deck_count = int(deck_count.content)
     
@@ -114,11 +122,18 @@ async def blackjack(ctx: commands.Context):
     await say(SHUFFLE)
     
     while len(playing_deck) > 4:  
+        if not game_active:
+            await say('**Game ended! Use `!blackjack` to start a new game.**')
+            return
         player_card = [playing_deck.pop(), playing_deck.pop()] 
         dealer_card = [playing_deck.pop(), playing_deck.pop()] 
 
         player_score = sum(card_value(card, 0) for card in player_card) 
         dealer_score = sum(card_value(card, 0) for card in dealer_card) 
+        
+        # incase of 2 aces
+        if player_score > 21: player_score = 12
+        if dealer_score > 21: player_score = 12
         time.sleep(2)
         await say("**------------------------New Round! Drawing Cards------------------------**")
         await say(f"Your cards: **{', '.join(f'{rank} of {suit}' for rank, suit in player_card)}**")
@@ -136,7 +151,7 @@ async def blackjack(ctx: commands.Context):
             await say('Would you like to **HIT** or **STAND**?')
             msg = await client.wait_for(
                 'message',
-                check=lambda message: "hit" in message.content.lower() or "stand" in message.content.lower(),
+                check=lambda message: message.author == ctx.author and ("hit" in message.content.lower() or "stand" in message.content.lower()),
             )
             if 'stand' in msg.content.lower(): 
                 await say("You **STAND**! It's my turn..")
@@ -225,7 +240,7 @@ def card_value(card, score):
     if card[0] in ['Jack', 'Queen', 'King']: 
         return 10
     elif card[0] == 'Ace':
-        # Check if score is defined and if adding 11 would cause a bust
+        # Check if adding 11 would cause a bust, if so add 1
         if score + 11 > 21:
             return 1
         return 11
