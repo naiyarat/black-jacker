@@ -19,6 +19,10 @@ AKANE = 'https://tenor.com/view/oshi-no-ko-oshi-no-ko-reaction-anime-anime-react
 DORAEMON_CRYING = 'https://tenor.com/view/reupload-doraemon-doraemon-angry-gif-3795486608840357480'
 DORAEMON_HAPPY = 'https://tenor.com/view/doraemon-cartoon-snacks-reupload-gif-657361926656401994'
 SHUFFLE = 'https://tenor.com/view/cards-card-trick-shuffle-card-game-how-to-shuffle-gif-22218157'
+SPONGEBOB = 'https://tenor.com/view/spongebob-skill-issue-skill-gif-24485644'
+BROKE = 'https://tenor.com/view/taxi-bye-debt-ok-bye-gif-3532572'
+RICH = 'https://tenor.com/view/rich-king-crown-money-cash-gif-17571826'
+
 @client.event
 async def on_ready():
     print(f'{client.user.name} has connected to Discord!')
@@ -82,25 +86,42 @@ async def blackjack(ctx: commands.Context):
         await ctx.send(msg)
         time.sleep(1)         
 
-    await say("Let's start the game!")
+    await say("Let's start the game! Please set the buy-in(baht):")
+    buy_in = await client.wait_for(
+        'message',
+        check=lambda message: message.content.isnumeric(),
+    )
+    buy_in = int(buy_in.content)
+    
+    await say("How many decks would you like? Please choose a number from 1 to 8:")
+    deck_count = await client.wait_for(
+        'message',
+        check=lambda message: message.content.isnumeric() and 1 <= int(message.content) <= 8,
+    )
+    deck_count = int(deck_count.content)
+    
+    await say("Let's get started!")
     await say("Shuffling deck...")
     
     categories = ['Hearts', 'Diamonds', 'Clubs', 'Spades'] 
     cards = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] 
-    deck = [(card, category) for category in categories for card in cards]
+    standard_deck = [(card, category) for category in categories for card in cards]
+    playing_deck = standard_deck * deck_count
+    playing_deck = playing_deck[:12]
+    dealer_wins_count = 0
+    player_wins_count = 0
     
-    random.shuffle(deck)
+    random.shuffle(playing_deck)
     await say(SHUFFLE)
     
-    while len(deck) > 4:  
-        player_card = [deck.pop(), deck.pop()] 
-        dealer_card = [deck.pop(), deck.pop()] 
+    while len(playing_deck) > 4:  
+        player_card = [playing_deck.pop(), playing_deck.pop()] 
+        dealer_card = [playing_deck.pop(), playing_deck.pop()] 
 
-        player_score = sum(card_value(card) for card in player_card) 
-        dealer_score = sum(card_value(card) for card in dealer_card) 
+        player_score = sum(card_value(card, 0) for card in player_card) 
+        dealer_score = sum(card_value(card, 0) for card in dealer_card) 
         time.sleep(2)
         await say("**------------------------New Round! Drawing Cards------------------------**")
-        
         await say(f"Your cards: **{', '.join(f'{rank} of {suit}' for rank, suit in player_card)}**")
         await say(f"Your score: **{player_score}**") 
         
@@ -110,13 +131,13 @@ async def blackjack(ctx: commands.Context):
                 await say("Wow! **Blackjack**! :speaking_head: :speaking_head: :speaking_head: :fire: :fire: :fire: :bangbang: :bangbang: :bangbang:")
                 await say(AKANE)
                 break
-            if len(deck) == 0:
+            if len(playing_deck) == 0:
                 await say("No cards left in the deck! You have to **STAND**!")
                 break
             await say('Would you like to **HIT** or **STAND**?')
             msg = await client.wait_for(
                 'message',
-                check=lambda message: message.author == ctx.author and message.content.lower() in ["hit", "stand"],
+                check=lambda message: "hit" in message.content.lower() or "stand" in message.content.lower(),
             )
             if 'stand' in msg.content.lower(): 
                 await say("You **STAND**! It's my turn..")
@@ -127,17 +148,18 @@ async def blackjack(ctx: commands.Context):
             elif 'hit' in msg.content.lower():
                 await say("You **HIT**! Let's see what you get..")
                 
-                new_card = deck.pop()
+                new_card = playing_deck.pop()
                 player_card.append(new_card) 
-                player_score += card_value(new_card)
+                player_score += card_value(new_card, player_score)
                 
                 await say(f"You got **{new_card[0]} of {new_card[1]}**")
                 await say(f"Your cards: **{', '.join(f'{rank} of {suit}' for rank, suit in player_card)}**")
                 await say(f"Your score: **{player_score}**") 
                 
                 if player_score > 21: 
-                    await say("**BUST**! I **WIN**! Your score exceeds **21**!") 
-                    await say(AKANE)
+                    await say("**BUST**! I **WIN**! Your score exceeds **21**!")
+                    await say(SPONGEBOB)
+                    dealer_wins_count += 1
                     break
                 
         if player_score > 21: 
@@ -154,34 +176,44 @@ async def blackjack(ctx: commands.Context):
         if dealer_score > player_score:
             await say(f"Didn't even have to draw! I **WIN** **{dealer_score}** to **{player_score}**!")
             await say(BACKSHOT)
+            dealer_wins_count += 1
         
         elif dealer_score < player_score:
-            while dealer_score < random.randint(16, 18) or dealer_score < player_score:
-                if len(deck) > 0:
+            while dealer_score <= player_score:
+                if len(playing_deck) > 0:
                     await say("I'll **HIT**! Let's see what I get..")
-                    new_card = deck.pop()
+                    new_card = playing_deck.pop()
                     dealer_card.append(new_card)
-                    dealer_score += card_value(new_card)
+                    dealer_score += card_value(new_card, dealer_score)
                     await say(f"I got **{new_card[0]} of {new_card[1]}**")
                     await say(f"My cards: **{', '.join(f'{rank} of {suit}' for rank, suit in dealer_card)}**")
                     await say(f"My score: **{dealer_score}**") 
                 if dealer_score > 21: 
                     await say("**BUST**! Crap you **WIN**! My score exceeds **21**!")
                     await say(DORAEMON_CRYING) 
-                    await say()
+                    player_wins_count += 1
                     break
                 elif dealer_score > player_score:
                     await say(f"You are a$$! I **WIN** **{dealer_score}** to **{player_score}**!")
                     await say(DORAEMON_HAPPY)
+                    dealer_wins_count += 1
                     break
-                elif dealer_score == player_score:
+                elif dealer_score == player_score and dealer_score > 17:
                     await say(f"It's a **DRAW**! I'll take it.")
                     break
-                elif dealer_score < player_score and len(deck) == 0:
+                elif dealer_score < player_score and len(playing_deck) == 0:
                     await say(f"I **LOST**! What a fluke!")
                     await say(DORAEMON_CRYING) 
+                    player_wins_count += 1
                 time.sleep(2)
     await say("We are out of cards! Thanks for playing.")
+    winnings = buy_in * abs(player_wins_count - dealer_wins_count)
+    if dealer_wins_count > player_wins_count:
+        await say(f"You've lost exactly **{winnings}** baht and I've won exactly **{winnings}**! Thanks for the money brokie.")
+        await say(BROKE)
+    elif player_wins_count < dealer_wins_count:
+        await say(f"You've won **{winnings}** baht. Don't cheat next time cheater!")
+        await say(RICH)
     return
         
 @client.command()
@@ -189,12 +221,12 @@ async def end(ctx: commands.Context):
    await ctx.send('Never stop gambling! Gamble on!')
    await ctx.send(BACKSHOT)
                     
-def card_value(card, score=None): 
+def card_value(card, score): 
     if card[0] in ['Jack', 'Queen', 'King']: 
         return 10
     elif card[0] == 'Ace':
         # Check if score is defined and if adding 11 would cause a bust
-        if score is not None and score + 11 > 21:
+        if score + 11 > 21:
             return 1
         return 11
     else:
