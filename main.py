@@ -137,7 +137,7 @@ async def blackjack(ctx: commands.Context):
         time.sleep(2)
         await say("**------------------------New Round! Drawing Cards------------------------**")
         await say(f"Your cards: **{', '.join(f'{rank} of {suit}' for rank, suit in player_card)}**")
-        await say(f"Dealer's card: **{(f'{rank} of {suit}' for rank, suit in player_card[0])}**")
+        await say(f"Dealer's card: **{dealer_card[0][0]} of {dealer_card[0][1]}**")
         await say(f"Your score: **{player_score}**") 
         
         # user's turn
