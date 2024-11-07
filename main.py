@@ -194,7 +194,7 @@ async def blackjack(ctx: commands.Context):
             await say(BACKSHOT)
             dealer_wins_count += 1
         
-        elif dealer_score < player_score:
+        elif dealer_score <= player_score:
             while dealer_score <= player_score:
                 if len(playing_deck) > 0:
                     await say("I'll **HIT**! Let's see what I get..")
