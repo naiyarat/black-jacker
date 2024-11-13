@@ -6,15 +6,19 @@ import time
 
 from discord.ext import commands
 
+# load the .env file to access environment variables like the bot token
 load_dotenv()
 TOKEN = os.environ['TOKEN']
 
+# set up the bot's intents to include member data access
 intents = discord.Intents.default()
-
 intents.members = True
 
+# track whether a game is active
 game_active = False
 client = commands.Bot(command_prefix='!', intents=intents)
+
+# URLs for various reaction gifs used in the game
 BACKSHOT = 'https://tenor.com/view/gojo-satoru-gif-14818873849943523300'
 AKANE = 'https://tenor.com/view/oshi-no-ko-oshi-no-ko-reaction-anime-anime-reaction-happy-gif-11489210881418844148'
 DORAEMON_CRYING = 'https://tenor.com/view/reupload-doraemon-doraemon-angry-gif-3795486608840357480'
@@ -26,10 +30,12 @@ RICH = 'https://tenor.com/view/rich-king-crown-money-cash-gif-17571826'
 
 @client.event
 async def on_ready():
+    # called when the bot successfully connects to Discord
     print(f'{client.user.name} has connected to Discord!')
     
 @client.command()
 async def usage(ctx: commands.Context):
+    # sends a usage message outlining available commands to the user
     help_message = """
     **------------------------Usage------------------------**
 
@@ -37,7 +43,7 @@ async def usage(ctx: commands.Context):
     Starts a game of Blackjack. You'll receive two cards and can choose to "hit" (draw another card) or "stand" (end your turn). The bot will then play as the dealer. Try to get as close to 21 without going over!
 
     **!rules**
-    Gives an explaination of how to play Blackjack
+    Gives an explanation of how to play Blackjack
     
     **!end**
     Ends the gambling...
@@ -49,6 +55,7 @@ async def usage(ctx: commands.Context):
     
 @client.command()
 async def rules(ctx: commands.Context):
+    # sends a message explaining the rules of Blackjack
     rules_message = """
     **------------------------Rules------------------------**
 
@@ -80,6 +87,7 @@ async def rules(ctx: commands.Context):
 
 @client.command()
 async def reallyend(ctx: commands.Context):
+    # ends the game after the current round finishes
     global game_active
     game_active = False
     await ctx.send("Game will end when round finishes...")
@@ -87,21 +95,25 @@ async def reallyend(ctx: commands.Context):
 @client.command()
 async def blackjack(ctx: commands.Context):
     async def say(msg):
+        # helper function to send a message and pause for readability
         await ctx.send(msg)
         time.sleep(1)       
         
     global game_active
 
+    # start a new game
     game_active = True
 
     await say("Let's start the game! Please set the buy-in(baht):")
+    # wait for user to enter the buy-in amount
     buy_in = await client.wait_for(
         'message',
-        check=lambda message: message.author == ctx.author and message.author == ctx.author and message.content.isnumeric(),
+        check=lambda message: message.author == ctx.author and message.content.isnumeric(),
     )
     buy_in = int(buy_in.content)
     
     await say("How many decks would you like? Please choose a number from 1 to 8:")
+    # wait for user to enter the number of decks
     deck_count = await client.wait_for(
         'message',
         check=lambda message: message.author == ctx.author and message.content.isnumeric() and 1 <= int(message.content) <= 8,
@@ -111,6 +123,7 @@ async def blackjack(ctx: commands.Context):
     await say("Let's get started!")
     await say("Shuffling deck...")
     
+    # set up the deck and shuffle it
     categories = ['Hearts', 'Diamonds', 'Clubs', 'Spades'] 
     cards = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] 
     standard_deck = [(card, category) for category in categories for card in cards]
@@ -121,7 +134,7 @@ async def blackjack(ctx: commands.Context):
     random.shuffle(playing_deck)
     await say(SHUFFLE)
     
-    while len(playing_deck) > 4:  
+    while len(playing_deck) > 4:  # end the game if there are not enough cards to continue
         if not game_active:
             await say('**Game ended! Use `!blackjack` to start a new game.**')
             return
@@ -131,7 +144,7 @@ async def blackjack(ctx: commands.Context):
         player_score = sum(card_value(card, 0) for card in player_card) 
         dealer_score = sum(card_value(card, 0) for card in dealer_card) 
         
-        # incase of 2 aces
+        # handle edge case of two aces totaling 22
         if player_score > 21: player_score = 12
         if dealer_score > 21: player_score = 12
         time.sleep(2)
@@ -141,7 +154,7 @@ async def blackjack(ctx: commands.Context):
         await say(f"Your score: **{player_score}**")
         await say(f"Dealer's score: **{card_value(dealer_card[0], 0)}**")  
         
-        # user's turn
+        # player's turn
         while True:
             if player_score == 21:
                 await say("Wow! **Blackjack**! :speaking_head: :speaking_head: :speaking_head: :fire: :fire: :fire: :bangbang: :bangbang: :bangbang:")
@@ -164,6 +177,7 @@ async def blackjack(ctx: commands.Context):
             elif 'hit' in msg.content.lower():
                 await say("You **HIT**! Let's see what you get..")
                 
+                # give player new card, display necessary information
                 new_card = playing_deck.pop()
                 player_card.append(new_card) 
                 player_score += card_value(new_card, player_score)
@@ -178,6 +192,7 @@ async def blackjack(ctx: commands.Context):
                     dealer_wins_count += 1
                     break
                 
+        # skip dealer's turn because player already lost
         if player_score > 21: 
             continue
         # dealer's turn
@@ -198,6 +213,8 @@ async def blackjack(ctx: commands.Context):
             while dealer_score <= player_score:
                 if len(playing_deck) > 0:
                     await say("I'll **HIT**! Let's see what I get..")
+                    
+                    # give dealer new card, display necessary information
                     new_card = playing_deck.pop()
                     dealer_card.append(new_card)
                     dealer_score += card_value(new_card, dealer_score)
@@ -223,7 +240,10 @@ async def blackjack(ctx: commands.Context):
                     player_wins_count += 1
                     break
                 time.sleep(2)
+                
     await say("We are out of cards! Thanks for playing.")
+    
+    # display total winnings
     winnings = buy_in * abs(player_wins_count - dealer_wins_count)
     if dealer_wins_count > player_wins_count:
         await say(f"You've lost exactly **{winnings}** baht and I've won exactly **{winnings}**! Thanks for the money brokie.")
@@ -231,10 +251,13 @@ async def blackjack(ctx: commands.Context):
     elif player_wins_count < dealer_wins_count:
         await say(f"You've won **{winnings}** baht. Don't cheat next time cheater!")
         await say(RICH)
+    # end game
+    game_active = False
     return
         
 @client.command()
 async def end(ctx: commands.Context):
+    # send a fun message
    await ctx.send('Never stop gambling! Gamble on!')
    await ctx.send(BACKSHOT)
                     
